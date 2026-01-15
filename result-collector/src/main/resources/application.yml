@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: result-collector
+
+server:
+  port: 8083

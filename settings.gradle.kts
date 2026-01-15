@@ -6,5 +6,5 @@ include(
     "sender",
     "reporter",
     "provider",
-    "webhook-receiver"
+    "result-collector"
 )
