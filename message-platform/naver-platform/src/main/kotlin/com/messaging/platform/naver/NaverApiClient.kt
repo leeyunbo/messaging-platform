@@ -2,39 +2,32 @@ package com.messaging.platform.naver
 
 import com.messaging.core.naver.domain.NaverSendResult
 import com.messaging.platform.naver.config.NaverApi
-import com.messaging.platform.naver.config.NaverConfig
-import com.messaging.platform.naver.config.NaverErrorCode
+import com.messaging.platform.naver.config.NaverProperties
 import com.messaging.platform.naver.dto.NaverResponse
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.WebClientResponseException
+import reactor.util.retry.Retry
 import java.time.Duration
 import java.util.Base64
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
-/**
- * 네이버 클라우드 API 호출 공통 클라이언트
- */
 @Component
 class NaverApiClient(
-    private val webClient: WebClient,
-    private val circuitBreaker: CircuitBreaker,
-    private val config: NaverConfig
+    @param:Qualifier("naverWebClient") private val webClient: WebClient,
+    @param:Qualifier("naverCircuitBreaker") private val circuitBreaker: CircuitBreaker,
+    @param:Qualifier("naverRetry") private val retry: Retry,
+    private val config: NaverProperties
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    val isEnabled: Boolean get() = config.enabled
-    val serviceId: String get() = config.serviceId
-
-    /**
-     * 네이버 클라우드 API 호출
-     */
     suspend fun <T : Any> send(
         path: String,
         request: T,
@@ -55,6 +48,7 @@ class NaverApiClient(
                 .retrieve()
                 .bodyToMono(NaverResponse::class.java)
                 .timeout(Duration.ofMillis(config.timeout))
+                .retryWhen(retry)
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
                 .awaitSingleOrNull()
 
@@ -64,7 +58,7 @@ class NaverApiClient(
             NaverSendResult.fail("HTTP_${e.statusCode.value()}", e.responseBodyAsString.ifBlank { "HTTP error" })
         } catch (e: Exception) {
             log.error("Failed to send {} via Naver: messageId={}, error={}", messageType, messageId, e.message)
-            NaverSendResult.retryable("EXCEPTION", e.message ?: "Unknown error")
+            NaverSendResult.fail("EXCEPTION", e.message ?: "Unknown error")
         }
     }
 
@@ -83,11 +77,7 @@ class NaverApiClient(
         }
 
         log.warn("Naver API returned error: messageId={}, code={}", messageId, response.statusCode)
-        return if (NaverErrorCode.isRetryable(response.statusCode)) {
-            NaverSendResult.retryable(response.statusCode, response.statusName)
-        } else {
-            NaverSendResult.fail(response.statusCode, response.statusName)
-        }
+        return NaverSendResult.fail(response.statusCode, response.statusName)
     }
 
     private fun makeSignature(path: String, timestamp: String): String {

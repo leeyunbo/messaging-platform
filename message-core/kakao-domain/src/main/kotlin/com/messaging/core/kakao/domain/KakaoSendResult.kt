@@ -5,32 +5,32 @@ package com.messaging.core.kakao.domain
  */
 data class KakaoSendResult(
     val success: Boolean,
-    val resultCode: String?,
-    val resultMessage: String?,
-    val serialNumber: String? = null,  // 폴링 시 필요
-    val retryable: Boolean = false
+    val resultCode: String? = null,
+    val resultMessage: String? = null,
+    val serialNumber: String? = null
 ) {
     companion object {
-        fun success(code: String = "0", message: String = "Success", serialNumber: String? = null) = KakaoSendResult(
+        fun success(serialNumber: String? = null) = KakaoSendResult(
             success = true,
-            resultCode = code,
-            resultMessage = message,
-            serialNumber = serialNumber,
-            retryable = false
+            serialNumber = serialNumber
         )
 
         fun fail(code: String, message: String) = KakaoSendResult(
             success = false,
             resultCode = code,
-            resultMessage = message,
-            retryable = false
+            resultMessage = message
         )
 
-        fun retryable(code: String, message: String) = KakaoSendResult(
+        fun unKnownError() = KakaoSendResult(
             success = false,
-            resultCode = code,
-            resultMessage = message,
-            retryable = true
+            resultCode = "9999",
+            resultMessage = "UNKNOWN_ERROR"
+        )
+
+        fun kakaoApiError() = KakaoSendResult(
+            success = false,
+            resultCode = "9998",
+            resultMessage = "KAKAO_API_ERROR"
         )
     }
 }

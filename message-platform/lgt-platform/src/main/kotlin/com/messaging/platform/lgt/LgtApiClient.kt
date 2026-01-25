@@ -2,34 +2,29 @@ package com.messaging.platform.lgt
 
 import com.messaging.core.sms.domain.SmsSendResult
 import com.messaging.platform.lgt.config.LgtApi
-import com.messaging.platform.lgt.config.LgtConfig
+import com.messaging.platform.lgt.config.LgtProperties
 import com.messaging.platform.lgt.dto.LgtResponse
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.WebClientResponseException
+import reactor.util.retry.Retry
 import java.time.Duration
 
-/**
- * LG U+ API 호출 공통 클라이언트
- */
 @Component
 class LgtApiClient(
-    private val webClient: WebClient,
-    private val circuitBreaker: CircuitBreaker,
-    private val config: LgtConfig
+    @param:Qualifier("lgtWebClient") private val webClient: WebClient,
+    @param:Qualifier("lgtCircuitBreaker") private val circuitBreaker: CircuitBreaker,
+    @param:Qualifier("lgtRetry") private val retry: Retry,
+    private val config: LgtProperties
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    val isEnabled: Boolean get() = config.enabled
-
-    /**
-     * LG U+ API 호출
-     */
     suspend fun <T : Any> send(
         path: String,
         request: T,
@@ -45,6 +40,7 @@ class LgtApiClient(
                 .retrieve()
                 .bodyToMono(LgtResponse::class.java)
                 .timeout(Duration.ofMillis(config.timeout))
+                .retryWhen(retry)
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
                 .awaitSingleOrNull()
 
@@ -54,7 +50,7 @@ class LgtApiClient(
             SmsSendResult.fail("HTTP_${e.statusCode.value()}", e.responseBodyAsString.ifBlank { "HTTP error" })
         } catch (e: Exception) {
             log.error("Failed to send via LGT: messageId={}, error={}", messageId, e.message)
-            SmsSendResult.retryable("EXCEPTION", e.message ?: "Unknown error")
+            SmsSendResult.fail("EXCEPTION", e.message ?: "Unknown error")
         }
     }
 

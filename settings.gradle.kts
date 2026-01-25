@@ -20,9 +20,11 @@ include(
 // Infrastructure - 기술 구현체
 // ============================================
 include(
-    "message-infrastructure:db",
+    "message-infrastructure:db-sms",
+    "message-infrastructure:db-kakao",
+    "message-infrastructure:db-rcs",
+    "message-infrastructure:db-naver",
     "message-infrastructure:rabbitmq",
-    "message-infrastructure:webclient",
     "message-infrastructure:netty"
 )
 
@@ -41,8 +43,8 @@ include(
     "message-usecase:sms-usecase",
     "message-usecase:lms-mms-usecase",
     "message-usecase:rcs-usecase",
-    "message-usecase:kakao-usecase",
-    "message-usecase:kakao-direct-usecase",
+    "message-usecase:kakao-alimtalk-usecase",
+    "message-usecase:kakao-brandmessage-usecase",
     "message-usecase:naver-usecase"
 )
 

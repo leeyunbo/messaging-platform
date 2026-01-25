@@ -2,35 +2,29 @@ package com.messaging.platform.kt
 
 import com.messaging.core.sms.domain.SmsSendResult
 import com.messaging.platform.kt.config.KtApi
-import com.messaging.platform.kt.config.KtConfig
-import com.messaging.platform.kt.config.KtErrorCode
+import com.messaging.platform.kt.config.KtProperties
 import com.messaging.platform.kt.dto.KtResponse
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.WebClientResponseException
+import reactor.util.retry.Retry
 import java.time.Duration
 
-/**
- * KT API 호출 공통 클라이언트
- */
 @Component
 class KtApiClient(
-    private val webClient: WebClient,
-    private val circuitBreaker: CircuitBreaker,
-    private val config: KtConfig
+    @param:Qualifier("ktWebClient") private val webClient: WebClient,
+    @param:Qualifier("ktCircuitBreaker") private val circuitBreaker: CircuitBreaker,
+    @param:Qualifier("ktRetry") private val retry: Retry,
+    private val config: KtProperties
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    val isEnabled: Boolean get() = config.enabled
-
-    /**
-     * KT API 호출
-     */
     suspend fun <T : Any> send(
         path: String,
         request: T,
@@ -46,6 +40,7 @@ class KtApiClient(
                 .retrieve()
                 .bodyToMono(KtResponse::class.java)
                 .timeout(Duration.ofMillis(config.timeout))
+                .retryWhen(retry)
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
                 .awaitSingleOrNull()
 
@@ -55,7 +50,7 @@ class KtApiClient(
             SmsSendResult.fail("HTTP_${e.statusCode.value()}", e.responseBodyAsString.ifBlank { "HTTP error" })
         } catch (e: Exception) {
             log.error("Failed to send via KT: messageId={}, error={}", messageId, e.message)
-            SmsSendResult.retryable("EXCEPTION", e.message ?: "Unknown error")
+            SmsSendResult.fail("EXCEPTION", e.message ?: "Unknown error")
         }
     }
 
@@ -74,10 +69,6 @@ class KtApiClient(
         }
 
         log.warn("KT API returned error: messageId={}, code={}", messageId, response.code)
-        return if (KtErrorCode.isRetryable(response.code)) {
-            SmsSendResult.retryable(response.code, response.message)
-        } else {
-            SmsSendResult.fail(response.code, response.message)
-        }
+        return SmsSendResult.fail(response.code, response.message)
     }
 }

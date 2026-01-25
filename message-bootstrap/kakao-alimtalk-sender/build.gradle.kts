@@ -4,10 +4,9 @@ plugins {
 
 dependencies {
     implementation(project(":message-core:kakao-domain"))
-    implementation(project(":message-usecase:kakao-usecase"))
+    implementation(project(":message-usecase:kakao-alimtalk-usecase"))
     implementation(project(":message-infrastructure:rabbitmq"))
-    implementation(project(":message-infrastructure:db"))
-    implementation(project(":message-infrastructure:webclient"))
+    implementation(project(":message-infrastructure:db-kakao"))
     implementation(project(":message-platform:kakao-platform"))
     implementation(project(":message-library:logging"))
 

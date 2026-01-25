@@ -1,36 +1,173 @@
-# 메시지 발송 플랫폼
+# Messaging Platform
 
-## 개요
-발송 미디어 별로 분산된 메시지 발송 시스템을 통합하되, 각 발송 미디어의 독립적 운영을 유지하기 위해 클린 아키텍처 기반 모노레포로 설계
-- 통합: 공통 도메인/인프라 코드 공유
-- 독립: 채널별 배포 단위 분리
+## 프로젝트 배경
 
-**참고)** 아키텍처 설계가 중요한 토이 프로젝트이며 회사의 업무와 관련되어 있기에, 상세한 로직은 생략하고 구조 중심으로 구현하였음
+### 문제 인식
 
-## 패키지 구조
-
-| 레이어 | 설명 |
-|--------|------|
-| `message-core/` | 도메인 모델, 포트 인터페이스 |
-| `message-usecase/` | 비즈니스 로직 |
-| `message-platform/` | 외부 API 어댑터 |
-| `message-infrastructure/` | 기술 구현 (RabbitMQ, DB, WebClient) |
-| `message-library/` | 공통 유틸리티 |
-| `message-bootstrap/` | 실행 애플리케이션 |
-
-## 의존성 방향
+실무에서 메시지 발송 시스템은 채널별로 분산되어 운영되는 경우가 많음
 
 ```
-bootstrap → usecase → core ← platform
-              ↓         ↑
-         infrastructure
+SMS 발송 시스템 (담당자 A) ──────────────────┐
+카카오 알림톡 시스템 (담당자 B) ────────────── ┼── 각자의 코드베이스, 배포 파이프라인
+RCS 발송 시스템 (담당자 C) ──────────────────┘
 ```
 
-- `core`: 순수 도메인, 외부 의존성 없음
-- `usecase`: core의 포트 인터페이스 사용
-- `platform`, `infrastructure`: core의 포트 구현
-- `bootstrap`: 모든 모듈 조립
+이로 인해 발생하는 문제
+
+**기술적 문제**
+- **중복 구현**: 리포트 처리, 재시도 로직, 모니터링 등 공통 기능이 각 시스템에서 반복 구현
+- **n배의 업무량**: 하나의 공통 작업도 시스템 수만큼 반복 작업 필요
+
+**조직적 문제**
+- **담당자 의존성**: 시스템별 담당자가 고정되어 있어 지식 공유에 한계 존재
+- **리스크 집중**: 담당자 부재 시 해당 시스템의 운영 공백 발생
+- **커뮤니케이션 단절**: 각자 업무에 집중하다 보니 팀 내 소통 문화에도 악영향
+
+### 해결 방향
+
+**"통합하되, 독립성은 유지한다"**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Messaging Platform                       │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐            │
+│  │ SMS Sender  │ │ Kakao Sender│ │ RCS Sender  │  ← 독립 배포 │
+│  └──────┬──────┘ └──────┬──────┘ └──────┬──────┘            │
+│         │               │               │                   │
+│  ┌──────┴───────────────┴───────────────┴──────┐            │
+│  │          공통 도메인 / 인프라 / 라이브러리          │  ← 코드 공유 │
+│  └─────────────────────────────────────────────┘            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+- **모노레포**: 단일 저장소에서 공통 코드 공유
+- **모듈화**: 채널별 독립 배포 단위 유지
+- **클린 아키텍처**: 도메인 중심 설계로 기술 변경에 유연하게 대응
+
+---
+
+## 아키텍처
+
+### 모듈 구조
+
+```
+messaging-platform/
+├── message-core/           # 도메인 모델, 포트 인터페이스 (외부 의존 X)
+│   ├── sms-domain/
+│   ├── kakao-domain/
+│   ├── rcs-domain/
+│   └── naver-domain/
+│
+├── message-usecase/        # 비즈니스 로직 (애플리케이션 서비스)
+│   ├── sms-usecase/
+│   ├── kakao-alimtalk-usecase/
+│   ├── kakao-brandmessage-usecase/
+│   └── ...
+│
+├── message-platform/       # 외부 API 어댑터 (통신사, 카카오 등)
+│   ├── skt-platform/
+│   ├── kt-platform/
+│   ├── kakao-platform/
+│   └── ...
+│
+├── message-infrastructure/ # 기술 구현체 (DB, MQ)
+│   ├── db-sms/
+│   ├── db-kakao/
+│   ├── rabbitmq/
+│   └── netty/
+│
+├── message-library/        # 횡단 관심사 (로깅, ID 생성)
+│   ├── id-generator/
+│   └── logging/
+│
+└── message-bootstrap/      # 실행 애플리케이션 (채널별 독립 배포)
+    ├── sms-receiver/
+    ├── sms-sender/
+    ├── kakao-alimtalk-sender/
+    ├── kakao-brandmessage-sender/
+    └── reporter/
+```
+
+### 의존성 방향
+
+```
+         bootstrap
+             │
+             ▼
+          usecase ──────────► core ◄──────── platform
+             │                 ▲                  │
+             │                 │                  │
+             └────► infrastructure ◄──────────────┘
+```
+
+- **core**: 순수 도메인 로직, 프레임워크 의존성 없음
+- **usecase**: 비즈니스 흐름 조율, core의 포트 인터페이스 사용
+- **platform/infrastructure**: core의 포트 구현 (Adapter)
+- **bootstrap**: 모든 모듈 조립, 채널별 독립 실행
+
+### Bounded Context 분리
+
+각 발송 채널은 독립된 Bounded Context로 분리되어 있습니다.
+
+```kotlin
+// message-core/sms-domain
+data class SmsMessage(val recipient: String, val content: String)
+
+// message-core/kakao-domain
+data class AlimtalkMessage(val templateCode: String, val variables: Map<String, String>)
+```
+
+채널 간 공유가 필요한 개념(Partner, Report)만 별도 도메인으로 분리합니다.
+
+---
+
+## 기술적 결정
+
+### 1. Convention Plugins
+
+40개 이상의 모듈에서 빌드 설정 중복을 제거하기 위해 Gradle Convention Plugins 적용
+
+```kotlin
+// 각 모듈의 build.gradle.kts
+plugins {
+    id("domain-conventions")  // 도메인 모듈용 공통 설정
+}
+```
+
+---
+
+## 프로젝트 목표
+
+### 핵심 질문
+
+> **"클린 아키텍처 기반 모노레포가 우리 팀의 분산된 발송 시스템을 통합하는 데 적합한 구조인가?"**
+
+### 검증 포인트
+
+| 검증 항목 | 질문 |
+|----------|------|
+| **모듈 분리** | 40개 이상의 모듈을 나눠도 관리가 가능한가? |
+| **독립 배포** | 통합했지만 채널별 독립 배포가 유지되는가? |
+| **협업 구조** | 단일 코드베이스에서 담당자 간 협업이 수월해지는가? |
+| **확장성** | 새로운 발송 채널 추가 시 기존 구조에 자연스럽게 녹아드는가? |
+
+---
 
 ## 기술 스택
 
-Kotlin 2.3 / Spring Boot 4.0 / WebFlux / Spring AMQP / R2DBC / Resilience4j
+| 분류 | 기술 |
+|------|------|
+| Language | Kotlin 2.1 |
+| Framework | Spring Boot 3.4, WebFlux |
+| Build | Gradle 8.x, Convention Plugins |
+| Messaging | RabbitMQ, Spring AMQP |
+| Database | R2DBC, MySQL |
+| Resilience | Resilience4j (CircuitBreaker, Retry) |
+| Protocol | Netty (SMPP) |
+
+---
+
+## 참고
+
+이 프로젝트는 아키텍처 설계와 모듈 구조가 핵심인 토이 프로젝트입니다.
+실무 코드와 관련이 있어 상세 비즈니스 로직은 생략하고 **구조 중심**으로 구현되어 있습니다.

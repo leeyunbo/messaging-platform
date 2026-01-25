@@ -4,14 +4,8 @@ import com.messaging.core.naver.domain.NaverAlimtalkProvider
 import com.messaging.core.naver.domain.NaverAlimtalkRequest
 import com.messaging.core.naver.domain.NaverSendResult
 import com.messaging.platform.naver.config.NaverApi
-import com.messaging.platform.naver.dto.NaverAlimtalkMessageDto
-import com.messaging.platform.naver.dto.NaverAlimtalkRequestDto
-import com.messaging.platform.naver.dto.NaverButtonDto
 import org.springframework.stereotype.Component
 
-/**
- * 네이버 클라우드 알림톡 Provider
- */
 @Component
 class NaverAlimtalkProviderImpl(
     private val naverApiClient: NaverApiClient
@@ -23,30 +17,30 @@ class NaverAlimtalkProviderImpl(
         }
 
         val buttons = request.buttons.map { btn ->
-            NaverButtonDto(
-                type = btn.type.name,
-                name = btn.name,
-                linkMobile = btn.linkMobile,
-                linkPc = btn.linkPc
-            )
+            buildMap {
+                put("type", btn.type.name)
+                put("name", btn.name)
+                btn.linkMobile?.let { put("linkMobile", it) }
+                btn.linkPc?.let { put("linkPc", it) }
+            }
         }.ifEmpty { null }
 
-        val naverRequest = NaverAlimtalkRequestDto(
-            templateCode = request.templateCode,
-            plusFriendId = request.plusFriendId,
-            messages = listOf(
-                NaverAlimtalkMessageDto(
-                    to = request.recipient,
-                    content = request.content,
-                    buttons = buttons
-                )
+        val body = mapOf(
+            "templateCode" to request.templateCode,
+            "plusFriendId" to request.plusFriendId,
+            "messages" to listOf(
+                buildMap {
+                    put("to", request.recipient)
+                    put("content", request.content)
+                    buttons?.let { put("buttons", it) }
+                }
             )
         )
 
         val path = NaverApi.ALIMTALK_SEND_PATH_TEMPLATE.format(naverApiClient.serviceId)
         return naverApiClient.send(
             path = path,
-            request = naverRequest,
+            request = body,
             messageId = request.messageId,
             messageType = "Alimtalk"
         )

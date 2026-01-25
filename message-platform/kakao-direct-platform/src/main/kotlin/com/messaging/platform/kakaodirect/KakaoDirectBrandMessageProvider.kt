@@ -4,6 +4,7 @@ import com.messaging.core.kakao.domain.BrandMessageProvider
 import com.messaging.core.kakao.domain.BrandMessageRequest
 import com.messaging.core.kakao.domain.KakaoSendResult
 import com.messaging.library.idgen.MessageIdGenerator
+import com.messaging.platform.kakaodirect.config.KakaoDirectProperties
 import org.springframework.stereotype.Component
 
 /**
@@ -11,23 +12,28 @@ import org.springframework.stereotype.Component
  */
 @Component
 class KakaoDirectBrandMessageProvider(
-    private val apiClient: KakaoDirectApiClient
+    private val apiClient: KakaoDirectApiClient,
+    private val config: KakaoDirectProperties
 ) : BrandMessageProvider {
 
     override suspend fun send(request: BrandMessageRequest): KakaoSendResult {
-        if (!apiClient.isEnabled) {
-            return KakaoSendResult.fail("DISABLED", "Kakao Direct provider is disabled")
+        if (!config.enabled) {
+            return KakaoSendResult.unKnownError()
         }
 
         val serialNumber = MessageIdGenerator.generate()
         val path = request.brandMessageType.path
 
-        // variables를 그대로 body로 전송, serialNumber는 헤더로
         return apiClient.send(
             path = path,
-            body = request.variables,
+            body = request.toApiBody(),
             messageId = request.messageId,
-            serialNumber = serialNumber
+            serialNumber
         )
+    }
+
+    private fun BrandMessageRequest.toApiBody() = buildMap {
+        putAll(variables)
+        put("targeting", targeting.name)
     }
 }

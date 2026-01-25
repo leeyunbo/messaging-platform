@@ -17,23 +17,17 @@ object KakaoAlimtalkApi {
  */
 enum class KakaoErrorCode(
     val code: Int,
-    val description: String,
-    val retryable: Boolean
+    val description: String
 ) {
-    // 영구 실패 (재시도 불필요)
-    INVALID_PARAMETER(-1000, "잘못된 파라미터", false),
-    INVALID_TEMPLATE(-1001, "템플릿 불일치", false),
-    INVALID_PHONE(-1002, "잘못된 수신번호", false),
-
-    // 일시적 오류 (재시도 가능)
-    SYSTEM_ERROR(-9000, "카카오 시스템 오류", true),
-    TIMEOUT(-9001, "카카오 처리 타임아웃", true);
+    INVALID_PARAMETER(-1000, "잘못된 파라미터"),
+    INVALID_TEMPLATE(-1001, "템플릿 불일치"),
+    INVALID_PHONE(-1002, "잘못된 수신번호"),
+    SYSTEM_ERROR(-9000, "카카오 시스템 오류"),
+    TIMEOUT(-9001, "카카오 처리 타임아웃");
 
     companion object {
         private val codeMap = entries.associateBy { it.code }
 
         fun fromCode(code: Int): KakaoErrorCode? = codeMap[code]
-
-        fun isRetryable(code: Int): Boolean = codeMap[code]?.retryable ?: false
     }
 }

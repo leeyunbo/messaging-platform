@@ -1,0 +1,16 @@
+server:
+  port: 10002
+
+spring:
+  application:
+    name: kakao-brandmessage-sender
+
+rabbitmq:
+  queue: brandmessage-send-queue
+
+kakao-direct:
+  enabled: true
+  base-url: https://api.kakao.com
+  api-key: ${KAKAO_DIRECT_API_KEY:}
+  secret-key: ${KAKAO_DIRECT_SECRET_KEY:}
+  timeout: 10000

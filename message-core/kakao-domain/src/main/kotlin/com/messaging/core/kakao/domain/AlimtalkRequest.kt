@@ -6,7 +6,7 @@ package com.messaging.core.kakao.domain
 data class AlimtalkRequest(
     val messageId: String,
     val responseMethod: ResponseMethod,
-    val timeout: Long? = null,  // REALTIME일 때 사용 (ms)
+    val timeout: Long? = null,
     val variables: Map<String, Any?> = emptyMap()
 )
 

@@ -9,6 +9,7 @@ package com.messaging.core.kakao.domain
 data class BrandMessageRequest(
     val messageId: String,
     val brandMessageType: BrandMessageType,
+    val targeting: Targeting,
     val variables: Map<String, Any?> = emptyMap()
 )
 
@@ -19,4 +20,8 @@ enum class BrandMessageType(val path: String) {
     BASIC("/v1/basic"),
     FREE("/v1/free"),
     GROUP_MESSAGE("/v1/broadcast")
+}
+
+enum class Targeting {
+    I, N, M, F
 }
