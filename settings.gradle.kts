@@ -1,5 +1,8 @@
 rootProject.name = "messaging-platform"
 
+// Convention Plugins
+includeBuild("build-logic")
+
 // ============================================
 // Core - 핵심 도메인 (외부 의존 X)
 // 각 발송 미디어의 Bounded Context 분리
@@ -35,24 +38,24 @@ include(
 // UseCase - 애플리케이션 서비스 (비즈니스 로직)
 // ============================================
 include(
-    "message-usecase:sms",
-    "message-usecase:lms-mms",
-    "message-usecase:rcs",
-    "message-usecase:kakao",          // 알림톡 (Kakao)
-    "message-usecase:kakao-direct",   // 브랜드메시지 (Kakao Direct)
-    "message-usecase:naver"
+    "message-usecase:sms-usecase",
+    "message-usecase:lms-mms-usecase",
+    "message-usecase:rcs-usecase",
+    "message-usecase:kakao-usecase",
+    "message-usecase:kakao-direct-usecase",
+    "message-usecase:naver-usecase"
 )
 
 // ============================================
 // Platform - 외부 플랫폼 연동 (Adapter)
 // ============================================
 include(
-    "message-platform:skt",
-    "message-platform:kt",
-    "message-platform:lgt",
-    "message-platform:kakao",          // 알림톡 (Kakao)
-    "message-platform:kakao-direct",   // 브랜드메시지 (Kakao Direct)
-    "message-platform:naver"
+    "message-platform:skt-platform",
+    "message-platform:kt-platform",
+    "message-platform:lgt-platform",
+    "message-platform:kakao-platform",
+    "message-platform:kakao-direct-platform",
+    "message-platform:naver-platform"
 )
 
 

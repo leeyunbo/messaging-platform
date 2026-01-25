@@ -1,0 +1,9 @@
+plugins {
+    id("usecase-conventions")
+}
+
+dependencies {
+    implementation(project(":message-core:kakao-domain"))
+    implementation(project(":message-core:report-domain"))
+    implementation(project(":message-library:logging"))
+}

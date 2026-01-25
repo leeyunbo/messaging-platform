@@ -1,15 +1,8 @@
 plugins {
-    kotlin("jvm")
-    kotlin("plugin.spring")
+    id("infrastructure-conventions")
 }
 
 dependencies {
-    // Netty
-    implementation("io.netty:netty-all:4.1.100.Final")
-
-    // Kotlin Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
-
-    // Spring Context
+    implementation("io.netty:netty-all:4.2.5.Final")
     implementation("org.springframework:spring-context")
 }
