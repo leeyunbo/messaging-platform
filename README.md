@@ -88,52 +88,6 @@ messaging-platform/
     └── reporter/
 ```
 
-### 의존성 방향
-
-```
-         bootstrap
-             │
-             ▼
-          usecase ──────────► core ◄──────── platform
-             │                 ▲                  │
-             │                 │                  │
-             └────► infrastructure ◄──────────────┘
-```
-
-- **core**: 순수 도메인 로직, 프레임워크 의존성 없음
-- **usecase**: 비즈니스 흐름 조율, core의 포트 인터페이스 사용
-- **platform/infrastructure**: core의 포트 구현 (Adapter)
-- **bootstrap**: 모든 모듈 조립, 채널별 독립 실행
-
-### Bounded Context 분리
-
-각 발송 채널은 독립된 Bounded Context로 분리되어 있습니다.
-
-```kotlin
-// message-core/sms-domain
-data class SmsMessage(val recipient: String, val content: String)
-
-// message-core/kakao-domain
-data class AlimtalkMessage(val templateCode: String, val variables: Map<String, String>)
-```
-
-채널 간 공유가 필요한 개념(Partner, Report)만 별도 도메인으로 분리합니다.
-
----
-
-## 기술적 결정
-
-### 1. Convention Plugins
-
-40개 이상의 모듈에서 빌드 설정 중복을 제거하기 위해 Gradle Convention Plugins 적용
-
-```kotlin
-// 각 모듈의 build.gradle.kts
-plugins {
-    id("domain-conventions")  // 도메인 모듈용 공통 설정
-}
-```
-
 ---
 
 ## 프로젝트 목표
@@ -144,12 +98,12 @@ plugins {
 
 ### 검증 포인트
 
-| 검증 항목 | 질문 |
-|----------|------|
-| **모듈 분리** | 40개 이상의 모듈을 나눠도 관리가 가능한가? |
-| **독립 배포** | 통합했지만 채널별 독립 배포가 유지되는가? |
-| **협업 구조** | 단일 코드베이스에서 담당자 간 협업이 수월해지는가? |
-| **확장성** | 새로운 발송 채널 추가 시 기존 구조에 자연스럽게 녹아드는가? |
+| 검증 항목 | 질문                            | 결과                                |
+|----------|-------------------------------|-----------------------------------|
+| **모듈 분리** | 40개 이상의 모듈을 나눠도 의존성 관리가 용이한가? | Convention Plugins로 일관된 설정 유지     |
+| **독립 배포** | 통합했지만 채널별 독립 배포가 유지되는가?       | 특정 채널 모듈 독립적으로 배포 가능              |
+| **협업 구조** | 단일 코드베이스에서 담당자 간 협업이 수월해지는가?  | 실제 팀 적용 필요                        |
+| **확장성** | 새 채널 추가 시 기존 구조에 자연스럽게 녹아드는가? | Kakao, RCS, Naver 순차적으로 채널을 추가하여 확인 |
 
 ---
 
@@ -164,6 +118,15 @@ plugins {
 | Database | R2DBC, MySQL |
 | Resilience | Resilience4j (CircuitBreaker, Retry) |
 | Protocol | Netty (SMPP) |
+
+---
+
+## 문서
+
+| 문서 | 설명 |
+|------|------|
+| [프로젝트 배경](docs/background.md) | 왜 이 아키텍처를 선택했는지, 콘웨이 법칙과 팀 문화 |
+| [아키텍처 상세](docs/architecture.md) | 레이어별 역할, 의존성 규칙, Bounded Context |
 
 ---
 
